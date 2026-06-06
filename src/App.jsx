@@ -156,8 +156,25 @@ function App() {
           createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           date: new Date().toLocaleDateString([], { month: 'short', day: 'numeric' })
         };
-        const updated = [newGalleryItem, ...prev];
-        localStorage.setItem('aethergen_history', JSON.stringify(updated));
+        let updated = [newGalleryItem, ...prev];
+        try {
+          localStorage.setItem('aethergen_history', JSON.stringify(updated));
+        } catch (e) {
+          console.warn('LocalStorage quota exceeded. Pruning older history items to make space.', e);
+          // Keep removing the oldest item from history until it fits or we have none left
+          while (updated.length > 1) {
+            updated.pop();
+            try {
+              localStorage.setItem('aethergen_history', JSON.stringify(updated));
+              break; // Success
+            } catch (innerError) {
+              // Still exceeds quota, repeat loop
+            }
+          }
+          if (updated.length <= 1) {
+            console.error('Failed to save even a single image to localStorage due to quota limit.', e);
+          }
+        }
         return updated;
       });
 
