@@ -20,6 +20,7 @@ import {
   Check
 } from 'lucide-react';
 import { io } from 'socket.io-client';
+import AiImageLoader from './components/AiImageLoader';
 import './App.css';
 
 // Preset suggestions for users to click and run
@@ -52,6 +53,9 @@ function App() {
   // UI States
   const [selectedImage, setSelectedImage] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+
+  // Real-time task logs accumulated from the backend
+  const [taskLogs, setTaskLogs] = useState([]);
 
   const socketRef = useRef(null);
   const timerRef = useRef(null);
@@ -88,6 +92,18 @@ function App() {
       
       setActiveTask((prev) => {
         if (prev && prev.taskId === data.taskId) {
+          // Append dynamic log message from backend if not already added
+          setTaskLogs((prevLogs) => {
+            const exists = prevLogs.some((log) => log.message === data.message);
+            if (exists) return prevLogs;
+            return [...prevLogs, {
+              message: data.message,
+              progress: data.progress,
+              status: data.status,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            }];
+          });
+
           // If task complete, add to history (handled by another useEffect)
           return {
             ...prev,
@@ -145,12 +161,12 @@ function App() {
         return updated;
       });
 
-      // Clear the active task monitor after 3.5 seconds to show completion details
+      // Clear the active task monitor after 1 second to show final completed loader state
       const completionTimer = setTimeout(() => {
         setActiveTask(null);
         setIsGenerating(false);
         setPromptText('');
-      }, 3500);
+      }, 1000);
 
       return () => clearTimeout(completionTimer);
     }
@@ -164,6 +180,9 @@ function App() {
     setIsGenerating(true);
     setError(null);
     setElapsedTime(0);
+
+    // Reset real-time task logs from backend
+    setTaskLogs([]);
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
     
@@ -399,57 +418,13 @@ function App() {
                     </span>
                   </div>
 
-                  {/* Circular visual progress tracker */}
-                  <div className="progress-visual-container">
-                    <svg className="progress-circle-svg">
-                      <defs>
-                        <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#8b5cf6" />
-                          <stop offset="50%" stopColor="#6366f1" />
-                          <stop offset="100%" stopColor="#06b6d4" />
-                        </linearGradient>
-                      </defs>
-                      <circle className="progress-circle-bg" cx="70" cy="70" r="60" />
-                      <circle 
-                        className="progress-circle-bar" 
-                        cx="70" 
-                        cy="70" 
-                        r="60" 
-                        strokeDasharray="377" 
-                        strokeDashoffset={strokeDashoffset} 
-                      />
-                    </svg>
-                    
-                    <div className="progress-percentage-center">
-                      <div className="progress-percent-val">{activeTask.progress}%</div>
-                      <div className="progress-status-title">{activeTask.status}</div>
-                    </div>
-                  </div>
+                  {/* Render the dynamic wave loader directly */}
+                  <AiImageLoader 
+                    progress={activeTask.progress} 
+                    message={activeTask.message} 
+                  />
 
-                  {/* Step Checklist */}
-                  <div className="steps-checklist">
-                    <div className={getStepStatusClass(10, 40)}>
-                      <span className="step-item-dot"></span>
-                      <span>1. Initializing generation parameters</span>
-                    </div>
-                    <div className={getStepStatusClass(40, 80)}>
-                      <span className="step-item-dot"></span>
-                      <span>2. Diffusion denoising steps (12/30)</span>
-                    </div>
-                    <div className={getStepStatusClass(80, 100)}>
-                      <span className="step-item-dot"></span>
-                      <span>3. Detailing features & high-res upscale</span>
-                    </div>
-                    <div className={getStepStatusClass(100, 101)}>
-                      <span className="step-item-dot"></span>
-                      <span>4. Success! Compilation ready</span>
-                    </div>
-                  </div>
 
-                  {/* Progress string log */}
-                  <div className="progress-message">
-                    {activeTask.message}
-                  </div>
 
                 </div>
               )}
