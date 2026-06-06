@@ -172,6 +172,21 @@ function App() {
     }
   }, [activeTask?.status, activeTask?.resultUrl]);
 
+  // Handle active task failure state transitions
+  useEffect(() => {
+    if (activeTask && activeTask.status === 'failed') {
+      setError(activeTask.message || 'Image generation failed');
+      
+      // Clear the active task monitor after 3 seconds to let user see the final error status
+      const failureTimer = setTimeout(() => {
+        setActiveTask(null);
+        setIsGenerating(false);
+      }, 3000);
+
+      return () => clearTimeout(failureTimer);
+    }
+  }, [activeTask?.status, activeTask?.message]);
+
   // Initiate backend generation trigger
   const handleGenerate = async (e) => {
     e?.preventDefault();
